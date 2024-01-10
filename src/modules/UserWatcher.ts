@@ -8,10 +8,11 @@ import { logger as baseLogger } from '../logger'
 import { Util } from '../utils/Util'
 import { configManager } from './ConfigManager'
 import { userManager } from './UserManager'
+import { TwitterSpace } from '../model/twitter-space'
+import { connectDb } from '../database'
 
 export class UserWatcher extends EventEmitter {
   private logger: winston.Logger
-
   private cacheSpaceIds = new Set<string>()
 
   constructor(public username: string) {
@@ -23,7 +24,6 @@ export class UserWatcher extends EventEmitter {
     return userManager.getUserByUsername(this.username)
   }
 
-  // eslint-disable-next-line class-methods-use-this
   private get headers() {
     return {
       authorization: TWITTER_PUBLIC_AUTHORIZATION,
@@ -62,7 +62,7 @@ export class UserWatcher extends EventEmitter {
         .map((tweet) => tweet?.card?.legacy?.binding_values?.find?.((v) => v?.key === 'id')?.value?.string_value)
         .filter((v) => v),
     )]
-    spaceIds.forEach((id) => this.getAudioSpaceById(id))
+    await this.processSpaces(spaceIds)
     this.cleanCacheSpaceIds(spaceIds)
     const meta = {}
     if (spaceIds.length) {
@@ -71,31 +71,42 @@ export class UserWatcher extends EventEmitter {
     this.logger.debug('<-- getUserTweets', meta)
   }
 
-  private async getAudioSpaceById(id: string) {
-    if (this.cacheSpaceIds.has(id)) {
-      return
+  private async processSpaces(spaceIds: string[]) {
+    for (const id of spaceIds) {
+      if (!this.cacheSpaceIds.has(id)) {
+        try {
+          const spaceData = await this.getAudioSpaceById(id)
+          if (spaceData) {
+            await TwitterSpace.save(spaceData)
+          }
+        } catch (error) {
+          this.logger.error(`processSpaces: Error processing space ${id}: ${error.message}`)
+        }
+        this.cacheSpaceIds.add(id)
+      }
     }
+  }
+
+  private async getAudioSpaceById(id: string): Promise<TwitterSpace | null> {
     try {
       this.logger.debug('--> getAudioSpaceById', { id })
       const data = await twitterApiLimiter.schedule(() => TwitterApi.getAudioSpaceById(id, this.headers))
-      const { state } = data.data.audioSpace.metadata
-      this.logger.debug('<-- getAudioSpaceById', { id, state })
-      this.cacheSpaceIds.add(id)
-      if (state !== AudioSpaceMetadataState.RUNNING) {
-        return
+      const audioSpace = data.data.audioSpace
+      if (audioSpace && audioSpace.metadata.state === AudioSpaceMetadataState.RUNNING) {
+        return TwitterEntityUtil.buildSpaceByAudioSpace(audioSpace)
       }
-      this.emit('data', id)
+      return null
     } catch (error) {
       this.logger.error(`getAudioSpaceById: ${error.message}`, { id })
+      return null
     }
   }
 
   private cleanCacheSpaceIds(keepIds: string[]) {
     Array.from(this.cacheSpaceIds).forEach((id) => {
-      if (keepIds.includes(id)) {
-        return
+      if (!keepIds.includes(id)) {
+        this.cacheSpaceIds.delete(id)
       }
-      this.cacheSpaceIds.delete(id)
     })
   }
 }
