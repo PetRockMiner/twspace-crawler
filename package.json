@@ -1,7 +1,7 @@
 {
   "name": "twspace-crawler",
-  "version": "1.12.9",
-  "description": "Script to monitor & download Twitter Spaces 24/7",
+  "version": "1.13.0a",
+  "description": "Script to monitor & download Twitter Spaces 24/7 and collect in a database",
   "keywords": [
     "node",
     "nodejs",
@@ -9,9 +9,9 @@
     "twitter-api",
     "twitter-spaces"
   ],
-  "homepage": "https://github.com/HitomaruKonpaku/twspace-crawler#readme",
+  "homepage": "https://github.com/PetRockMiner/twspace-crawler",
   "license": "ISC",
-  "author": "HitomaruKonpaku",
+  "author": "PetRockMiner",
   "bin": {
     "twspace-crawler": "dist/index.js"
   },
@@ -20,7 +20,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/HitomaruKonpaku/twspace-crawler.git"
+    "url": "https://github.com/PetRockMiner/twspace-crawler.git"
   },
   "scripts": {
     "start": "node dist/index",
@@ -38,6 +38,7 @@
     "commander": "^8.3.0",
     "dotenv": "^14.2.0",
     "js-yaml": "^4.1.0",
+    "mysql2": "^2.3.0", 
     "node-notifier": "^10.0.0",
     "open": "^8.4.0",
     "tslib": "^2.3.1",
