@@ -25,6 +25,7 @@ import { SpaceCaptionsDownloader } from './SpaceCaptionsDownloader'
 import { SpaceCaptionsExtractor } from './SpaceCaptionsExtractor'
 import { SpaceDownloader } from './SpaceDownloader'
 import { Webhook } from './Webhook'
+import { connectDb } from '../database'
 
 export class SpaceWatcher extends EventEmitter {
   private logger: winston.Logger
@@ -238,7 +239,13 @@ export class SpaceWatcher extends EventEmitter {
     if (this.dynamicPlaylistUrl) {
       this.space.playlistUrl = PeriscopeUtil.getMasterPlaylistUrl(this.dynamicPlaylistUrl)
     }
+
+    // Save space data to the database
+    TwitterSpace.save(this.space).catch((err) => {
+      this.logger.error('Error saving space to database:', err)
+    })
   }
+
   // #endregion
 
   // #region audio space
@@ -300,6 +307,9 @@ export class SpaceWatcher extends EventEmitter {
       // Get latest metadata in case title changed
       await this.getSpaceData()
       this.logSpaceInfo()
+
+      // Save space data to the database
+      await TwitterSpace.save(this.space)      
 
       if (this.space?.state === SpaceState.LIVE) {
         // Recheck dynamic playlist in case host disconnect for a long time
